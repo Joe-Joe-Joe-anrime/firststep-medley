@@ -1,0 +1,1578 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>First Step 9曲 CUT・曲順シミュレーター</title>
+<style>
+:root{--blue:#0b49a0;--line:#d9dee7;--cut:#d5d7db;--ink:#172033}
+*{box-sizing:border-box} body{margin:0;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Noto Sans JP",sans-serif;background:#f6f8fb;color:var(--ink)}
+header{position:sticky;top:0;z-index:30;background:rgba(255,255,255,.97);backdrop-filter:blur(8px);border-bottom:1px solid #e4e7ec;padding:12px 16px}
+.top{max-width:1400px;margin:auto;display:flex;gap:14px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+h1{font-size:19px;margin:0} .totals{display:flex;gap:8px;flex-wrap:wrap}
+.pill{background:#eef3fa;border-radius:11px;padding:7px 11px;font-weight:700} #status{min-width:220px;text-align:center;padding:10px 16px} #status .label{display:block;font-size:11px;font-weight:700;opacity:.7;letter-spacing:.08em} #remain{display:inline-block;font-size:42px;line-height:1;font-weight:900;font-variant-numeric:tabular-nums;margin:3px 0 1px} #limitText{font-size:12px;opacity:.72}
+#status.over{background:#ffe7e7} #status.safe{background:#e8f5ea}
+.actions{max-width:1400px;margin:8px auto 0;display:flex;gap:7px;flex-wrap:wrap}
+button.ctrl{border:1px solid #b9c4d2;border-bottom:3px solid #9eacbd;background:linear-gradient(#fff,#f5f7fa);border-radius:9px;padding:7px 12px;font-weight:800;cursor:pointer;box-shadow:0 2px 4px rgba(16,24,40,.07);transition:.1s}
+button.ctrl:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(16,24,40,.11)}
+button.ctrl:active{transform:translateY(1px);border-bottom-width:1px;margin-bottom:2px}
+button.ctrl:focus-visible{outline:3px solid rgba(11,73,160,.28);outline-offset:2px}
+.layout{max-width:1400px;margin:16px auto;display:grid;grid-template-columns:minmax(0,1fr) 260px;gap:16px;padding:0 14px 40px}
+.help{background:white;border:1px solid #e1e5eb;border-radius:14px;padding:11px 13px;margin-bottom:14px}
+.song{display:grid;grid-template-columns:205px 34px 1fr;gap:0;align-items:stretch;margin:12px 0;cursor:default}
+.song.dragging{opacity:.35} .song.drag-over{outline:3px solid #9bbce8;border-radius:14px}
+.parent{background:#dcecff;color:#10233f;border:1px solid #b7cde8;border-radius:14px;padding:15px;display:flex;flex-direction:column;justify-content:center;min-height:125px;box-shadow:0 2px 8px rgba(0,0,0,.06);position:relative}
+.orderBadge{position:absolute;right:9px;top:8px;background:rgba(255,255,255,.2);border-radius:999px;padding:3px 8px;font-size:12px}
+.parent h2{font-size:17px;margin:4px 0 7px} .parent .num{opacity:.75;font-size:11px;color:#405a78} .parent .full{margin-top:7px;font-weight:800}
+.branch{position:relative} .branch:before{content:"";position:absolute;left:0;right:0;top:50%;height:2px;background:var(--line)}
+.children{position:relative;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px 9px;padding-left:18px}
+.children:before{content:"";position:absolute;left:0;top:12px;bottom:12px;width:2px;background:var(--line)}
+.block{position:relative;text-align:left;border:1px solid #cfd7e3;border-bottom:3px solid #b8c4d3;background:linear-gradient(#fff,#fbfcfe);border-radius:11px;padding:8px 38px 8px 10px;cursor:pointer;transition:.12s;min-height:60px;box-shadow:0 2px 5px rgba(16,24,40,.08)}
+.block:after{content:"TAP";position:absolute;right:7px;top:7px;font-size:9px;font-weight:900;letter-spacing:.05em;color:#0b49a0;background:#eaf2ff;border:1px solid #c8daf6;border-radius:999px;padding:2px 5px;text-decoration:none}
+.block:hover{transform:translateY(-1px);box-shadow:0 5px 12px rgba(16,24,40,.13);border-color:#a9bdd8}
+.block:active{transform:translateY(1px);box-shadow:0 1px 3px rgba(16,24,40,.10);border-bottom-width:1px;margin-bottom:2px}
+.block:focus-visible{outline:3px solid rgba(11,73,160,.28);outline-offset:2px}
+.block:before{content:"";position:absolute;left:-19px;top:50%;width:18px;height:2px;background:var(--line)}
+.block.cut{background:#d7d9dd;color:#777;text-decoration:line-through;border-color:#bfc3c9;border-bottom-color:#aeb3ba;box-shadow:inset 0 1px 2px rgba(0,0,0,.06)}
+.block.cut:after{content:"CUT";color:#62666c;background:#eceef1;border-color:#c5c8cd}
+.block-main{display:flex;justify-content:space-between;gap:8px} .dur{font-variant-numeric:tabular-nums;font-weight:800}
+.meta,.codes{font-size:11.5px;margin-top:3px;color:#667085} .cut .meta,.cut .codes{color:#888}
+.side{position:sticky;top:116px;height:calc(100vh - 132px);align-self:start;background:white;border:1px solid #dfe4eb;border-radius:14px;padding:12px;overflow:auto;box-shadow:0 4px 16px rgba(0,0,0,.05)}
+.side h3{font-size:14px;margin:0 0 9px} .miniNote{font-size:11px;color:#667085;margin-bottom:10px}
+#overview{display:flex;flex-direction:column;gap:5px}
+.miniSong{border-radius:9px;background:linear-gradient(#f3f7fc,#eaf1f9);padding:8px 9px;cursor:grab;border:1px solid #c9d7e8;border-bottom:3px solid #b5c7dc;user-select:none;box-shadow:0 2px 5px rgba(16,24,40,.08);transition:.12s}
+.miniSong:hover{transform:translateY(-1px);box-shadow:0 5px 10px rgba(16,24,40,.12);border-color:#a9bfdc}
+.miniSong:active{cursor:grabbing;transform:translateY(1px);border-bottom-width:1px;margin-bottom:2px}
+.miniSong.dragging{opacity:.35}.miniSong.drag-over{outline:3px solid rgba(11,73,160,.28)}
+.dragHandle{float:right;font-size:14px;color:#0b49a0;background:white;border:1px solid #c8d5e5;border-radius:6px;padding:0 5px;line-height:18px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.miniSong b{font-size:11px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.miniBar{display:flex;height:9px;border-radius:5px;overflow:hidden;background:#ddd;margin-top:5px}
+.miniSeg{background:#8db6e5;border-right:1px solid #d7e3f1} .miniSeg.cut{background:#c8cbd0}
+.miniMeta{font-size:10px;color:#667085;margin-top:3px;display:flex;justify-content:space-between}
+@media(max-width:900px){.layout{grid-template-columns:1fr}.side{position:sticky;top:110px;height:auto;max-height:32vh;z-index:20}#overview{display:grid;grid-template-columns:repeat(3,1fr)}}
+@media(max-width:700px){.song{grid-template-columns:1fr}.branch{display:none}.parent{min-height:auto;border-radius:12px 12px 0 0}.children{grid-template-columns:1fr;padding:10px;background:#eef2f7;border-radius:0 0 12px 12px}.children:before,.block:before{display:none}#overview{grid-template-columns:repeat(2,1fr)}}
+@media print{header,.side,.help{display:none}body{background:white}.layout{display:block;max-width:none}.song{break-inside:avoid}}
+
+.crossWrap{max-width:1400px;margin:9px auto 0}
+.crossLabel{display:flex;justify-content:space-between;align-items:end;font-size:11px;color:#667085;margin-bottom:4px}
+.crossLabel b{color:#172033;font-size:12px}
+.crossTrack{position:relative;height:96px;background:#edf1f6;border:1px solid #d6dde7;border-radius:10px;overflow:hidden;display:flex;align-items:stretch}
+.crossSong{height:100%;min-width:72px;display:flex;align-items:center;justify-content:center;position:relative;background:#dcecff;color:#10233f;cursor:pointer;overflow:hidden;transition:.1s;box-shadow:inset 0 -3px 0 rgba(52,91,137,.16);border-right:1px solid #b7cde8}
+.crossSong:hover{filter:brightness(1.12);transform:translateY(-1px)}
+.crossSong:active{filter:brightness(.95);transform:translateY(1px)}
+.crossSong:focus-visible{outline:3px solid rgba(255,255,255,.75);outline-offset:-3px}
+.crossSong:nth-child(even){background:#cfe3f9}
+.crossSong.cutAll{background:#d5d8dc;color:#5f6670}
+.crossSongText{width:100%;height:100%;padding:5px 6px;display:grid;grid-template-rows:auto 1fr auto;gap:3px;text-align:left;overflow:hidden}
+.crossTitle{font-size:10px;font-weight:900;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:center}
+.crossEdge{font-size:9px;line-height:1.15;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:#eef6ff;border:1px solid #b9cfe7;border-radius:5px;padding:3px 4px;color:#243b55}
+.crossEdge.start:before{content:"START  ";font-size:8px;opacity:.72;font-weight:900}
+.crossEdge.end:before{content:"END  ";font-size:8px;opacity:.72;font-weight:900}
+.crossSongTime{font-size:9px;font-weight:800;opacity:.9;text-align:center}
+.crossJoin{position:absolute;right:-8px;top:50%;transform:translateY(-50%);z-index:8;width:16px;height:16px;border-radius:50%;background:#fff;color:#0b49a0;border:1px solid #a8bdd8;font-size:12px;line-height:14px;text-align:center;font-weight:900;box-shadow:0 1px 3px rgba(0,0,0,.15);pointer-events:none}
+.crossLimit{position:absolute;top:0;bottom:0;width:2px;background:#d92d20;z-index:5;pointer-events:none}
+.crossLimit:after{content:"40:00";position:absolute;right:3px;top:3px;color:#d92d20;font-size:9px;font-weight:900;background:rgba(255,255,255,.9);padding:1px 3px;border-radius:3px}
+.crossGhost{position:absolute;right:0;top:0;bottom:0;background:repeating-linear-gradient(135deg,#eef1f4,#eef1f4 6px,#e1e5ea 6px,#e1e5ea 12px);z-index:0;pointer-events:none}
+
+
+/* ===== JOIN / COUNT controls ===== */
+.joinBtn{
+  position:absolute;right:-14px;top:50%;transform:translateY(-50%);z-index:12;
+  min-width:28px;height:28px;border-radius:999px;border:2px solid #0b49a0;
+  background:#fff;color:#0b49a0;font-weight:900;font-size:14px;line-height:22px;
+  cursor:pointer;box-shadow:0 3px 8px rgba(16,24,40,.18);padding:0 6px;
+}
+.joinBtn:hover{transform:translateY(-50%) scale(1.08);background:#edf5ff}
+.joinBtn:active{transform:translateY(-50%) scale(.98)}
+.joinBtn.set{background:#dcecff;color:#0b49a0;border-color:#5f8fc5}
+.joinBtn .joinMini{display:none}
+.joinBtn.set .joinArrow{display:none}
+.joinBtn.set .joinMini{display:inline;font-size:9px;white-space:nowrap}
+.joinLegend{font-size:10px;color:#667085;margin-top:4px}
+#countAddedPill{display:none}
+#countAddedPill.on{display:block}
+
+.joinModalBackdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.38);z-index:1000;display:none;
+  align-items:center;justify-content:center;padding:18px
+}
+.joinModalBackdrop.open{display:flex}
+.joinModal{
+  width:min(560px,100%);background:#fff;border-radius:16px;border:1px solid #d7dee8;
+  box-shadow:0 18px 50px rgba(15,23,42,.28);overflow:hidden
+}
+.joinModalHead{padding:14px 16px;background:#f7f9fc;border-bottom:1px solid #e1e6ee}
+.joinModalHead h3{margin:0;font-size:16px}
+.joinRoute{margin-top:5px;font-size:12px;color:#667085}
+.joinModalBody{padding:16px}
+.joinGrid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.field label{display:block;font-size:11px;font-weight:800;color:#475467;margin-bottom:5px}
+.field select,.field input{
+  width:100%;border:1px solid #c9d3df;border-radius:9px;padding:9px 10px;font-size:14px;background:white
+}
+.countModeRow{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;margin-bottom:12px}
+.modeBtn{
+  border:1px solid #c4cfdd;border-bottom:3px solid #aebccd;background:#fff;border-radius:10px;
+  padding:9px 7px;font-weight:800;cursor:pointer
+}
+.modeBtn.active{background:#dcecff;color:#10233f;border-color:#5f8fc5;border-bottom-color:#3d6faa;box-shadow:inset 0 0 0 1px #8eb3da}
+.modeHelp{font-size:11px;color:#667085;margin:-4px 0 12px;line-height:1.4}
+.joinPreview{
+  margin-top:12px;padding:11px 12px;border-radius:11px;background:#f3f6fa;border:1px solid #dce3ec;
+  font-size:12px;line-height:1.5
+}
+.joinPreview b{font-size:13px}
+.joinModalFoot{display:flex;justify-content:space-between;gap:8px;padding:12px 16px;border-top:1px solid #e1e6ee;background:#fafbfc}
+.joinModalFoot .left,.joinModalFoot .right{display:flex;gap:8px}
+.joinAction{
+  border:1px solid #b8c4d2;border-bottom:3px solid #9eaebe;background:linear-gradient(#fff,#f4f7fa);
+  border-radius:9px;padding:8px 12px;font-weight:800;cursor:pointer
+}
+.joinAction.primary{background:#dcecff;color:#10233f;border-color:#5f8fc5;border-bottom-color:#3d6faa}
+.joinAction.danger{color:#b42318}
+@media(max-width:620px){.joinGrid{grid-template-columns:1fr}.countModeRow{grid-template-columns:1fr}.joinBtn{right:-11px}}
+
+
+.joinSlot{flex:0 0 52px;height:100%;position:relative;display:flex;align-items:center;justify-content:center;background:#f9fbfd;border-left:1px dashed #bac6d5;border-right:1px dashed #bac6d5;z-index:9}
+.joinSlot:before{content:"曲間";position:absolute;top:7px;left:0;right:0;text-align:center;font-size:8px;font-weight:900;letter-spacing:.08em;color:#7b8797}
+.joinSlot:after{content:"";position:absolute;left:7px;right:7px;top:50%;height:2px;background:#c6d0dc;z-index:0}
+.joinSlot .joinBtn{position:relative;right:auto;top:auto;transform:none;z-index:2;min-width:34px;height:34px;padding:0 7px}
+.joinSlot .joinBtn:hover{transform:scale(1.08)}
+.joinSlot .joinBtn:active{transform:scale(.97)}
+.joinSlot .joinState{position:absolute;bottom:6px;left:2px;right:2px;text-align:center;font-size:8px;font-weight:800;color:#667085;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.crossGhost{position:relative!important;right:auto!important;top:auto!important;bottom:auto!important;height:100%;min-width:0;background:repeating-linear-gradient(135deg,#eef1f4,#eef1f4 6px,#e1e5ea 6px,#e1e5ea 12px);z-index:0;pointer-events:none}
+
+
+/* ===== block duration editor ===== */
+.block.partial{
+  background:linear-gradient(#fff8e8,#fff3cf);
+  border-color:#e2bb66;border-bottom-color:#c99a34;
+}
+.block.partial:after{
+  content:"尺編集";
+  color:#8a5b00;background:#fff1c2;border-color:#dfbf6e;
+}
+.block .dur.changed{color:#9a6700}
+.blockEditNote{
+  font-size:11px;color:#667085;line-height:1.45;margin-top:8px
+}
+.blockModalBackdrop{
+  position:fixed;inset:0;background:rgba(15,23,42,.38);z-index:1100;display:none;
+  align-items:center;justify-content:center;padding:18px
+}
+.blockModalBackdrop.open{display:flex}
+.blockModal{
+  width:min(500px,100%);background:#fff;border-radius:16px;border:1px solid #d7dee8;
+  box-shadow:0 18px 50px rgba(15,23,42,.28);overflow:hidden
+}
+.blockModalHead{padding:14px 16px;background:#f7f9fc;border-bottom:1px solid #e1e6ee}
+.blockModalHead h3{margin:0;font-size:17px}
+.blockModalRoute{margin-top:5px;font-size:12px;color:#667085}
+.blockModalBody{padding:16px}
+.blockDurRow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.blockDurBox{padding:11px;border-radius:11px;background:#f4f7fb;border:1px solid #dde5ef}
+.blockDurBox .k{font-size:10px;font-weight:800;color:#667085}
+.blockDurBox .v{font-size:24px;font-weight:900;margin-top:3px;font-variant-numeric:tabular-nums}
+.blockSecondsField{margin-top:14px}
+.blockSecondsField label{display:block;font-size:11px;font-weight:800;color:#475467;margin-bottom:5px}
+.blockSecondsField input{
+  width:100%;border:1px solid #c9d3df;border-radius:9px;padding:11px 12px;
+  font-size:20px;font-weight:800
+}
+.blockQuick{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.blockModalFoot{display:flex;justify-content:space-between;gap:8px;padding:12px 16px;border-top:1px solid #e1e6ee;background:#fafbfc}
+@media(max-width:620px){.blockDurRow{grid-template-columns:1fr}}
+
+
+/* 白文字を使わない統一ルール */
+.parent, .crossSong, .joinBtn.set, .modeBtn.active, .joinAction.primary {
+  text-shadow:none;
+}
+.parent h2, .parent .full { color:#10233f; }
+.crossTitle, .crossSongTime { color:#10233f; }
+.joinBtn.set .joinMini { color:#0b49a0; }
+.modeBtn.active:hover, .joinAction.primary:hover { color:#10233f; }
+
+
+/* ===== 曲ごとCUT ===== */
+.songCutBtn{
+  margin-top:10px;
+  width:100%;
+  border:1px solid #b8c4d2;
+  border-bottom:3px solid #9eacbd;
+  background:linear-gradient(#fff,#f4f7fa);
+  color:#243b55;
+  border-radius:9px;
+  padding:8px 10px;
+  font-size:12px;
+  font-weight:900;
+  cursor:pointer;
+  box-shadow:0 2px 4px rgba(16,24,40,.06);
+  transition:.1s;
+}
+.songCutBtn:hover{transform:translateY(-1px);box-shadow:0 4px 8px rgba(16,24,40,.10)}
+.songCutBtn:active{transform:translateY(1px);border-bottom-width:1px;margin-bottom:2px}
+.songCutBtn.isCut{
+  background:#e2e5e9;
+  color:#4f5865;
+  border-color:#b8bdc5;
+  border-bottom-color:#9ea5ae;
+}
+.song.songCut .parent{
+  background:#eceff2!important;
+  color:#4f5865!important;
+  border-color:#c7ccd3!important;
+}
+.song.songCut .parent h2,
+.song.songCut .parent .full,
+.song.songCut .parent .num{color:#4f5865!important}
+.song.songCut .children{opacity:.72}
+.miniSongActions{display:flex;gap:5px;margin-top:6px}
+.miniSongCutBtn{
+  flex:1;
+  border:1px solid #b9c5d3;
+  border-bottom:2px solid #a5b1bf;
+  background:#fff;
+  color:#34445a;
+  border-radius:7px;
+  padding:4px 6px;
+  font-size:9px;
+  font-weight:900;
+  cursor:pointer;
+}
+.miniSongCutBtn.isCut{
+  background:#e3e6ea;
+  color:#5b626c;
+  border-color:#b9bec6;
+}
+
+
+/* ===== 白文字 完全撤廃 ===== */
+button,
+input,
+select,
+textarea,
+.ctrl,
+.songCutBtn,
+.miniSongCutBtn,
+.joinBtn,
+.modeBtn,
+.joinAction {
+  color:#172033 !important;
+  -webkit-text-fill-color:#172033 !important;
+}
+
+button:disabled,
+input:disabled,
+select:disabled,
+textarea:disabled {
+  color:#667085 !important;
+  -webkit-text-fill-color:#667085 !important;
+  opacity:.72;
+}
+
+/* 危険操作だけは赤文字。白文字は使用しない */
+.joinAction.danger {
+  color:#b42318 !important;
+  -webkit-text-fill-color:#b42318 !important;
+}
+
+/* 選択中・設定済みも濃色文字のまま */
+.joinBtn.set,
+.modeBtn.active,
+.joinAction.primary,
+.songCutBtn.isCut,
+.miniSongCutBtn.isCut {
+  color:#10233f !important;
+  -webkit-text-fill-color:#10233f !important;
+}
+
+/* 上部操作ボタンは特に明示 */
+button.ctrl {
+  color:#172033 !important;
+  -webkit-text-fill-color:#172033 !important;
+  background:linear-gradient(#ffffff,#f3f6f9) !important;
+}
+
+/* 主要カード内も暗色固定 */
+.parent,
+.parent h2,
+.parent .full,
+.parent .num,
+.crossSong,
+.crossTitle,
+.crossEdge,
+.crossSongTime {
+  color:#172033 !important;
+  -webkit-text-fill-color:#172033 !important;
+}
+
+
+/* ===== 上部サマリーカード中央揃え ===== */
+.totals .pill{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+#status{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+}
+
+</style></head>
+<body>
+<header><div class="top"><h1>First Step 9曲 CUT・曲順シミュレーター</h1>
+<div class="totals"><div class="pill">原曲9曲 40:20</div><div class="pill"><span id="editLabel">短縮 −</span><span id="cutTotal">0:00</span></div><div class="pill" id="countAddedPill">COUNT +<span id="countAdded">0:00</span></div><div class="pill" id="status"><span class="label">CURRENT TOTAL</span><span id="remain">40:20</span><div id="limitText">上限 40:00</div></div></div></div>
+<div class="actions"><button class="ctrl" id="reset">ブロック尺を全初期化</button><button class="ctrl" id="resetOrder">曲順を初期化</button><button class="ctrl" id="print">印刷 / PDF保存</button></div>
+<div class="crossWrap">
+  <div class="crossLabel"><b>全曲横断タイムライン</b><span>START / END は「Intro・リフ・歌い出し」など直感的な短い表示</span></div>
+  <div class="crossTrack" id="crossTrack"></div><div class="joinLegend">曲間の丸い「›」をタップ → カウント設定。青い丸は設定済み。</div>
+</div>
+</header>
+<div class="layout"><main>
+<div class="help"><b>操作：</b>浮いて見えるUIは操作できます。ブロックをタップすると、0秒（全CUT）～任意秒数まで手入力できます。曲名カードの「曲ごとCUT」で曲単位のON/OFFもできます。右の曲カードはドラッグ＆ドロップで曲順変更。右の小窓は全9曲の全体像で、CUT状況と現在の曲順を同期表示します。状態はブラウザに保存されます。<br><small>音源は既存GitHub Pages上のMP3をURL参照して流用可能です（同じMP3の再アップ不要）。</small></div>
+<div id="songs"><section class="song" draggable="true" data-title="夢見る少女じゃいられない" data-original="0">
+      <div class="parent">
+        <div class="num">1</div>
+        <h2>夢見る少女じゃいられない</h2>
+        <div>Key C#m / BPM 160</div>
+        <div class="full">原曲尺 4:18</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="15" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:15</span></div>
+          <div class="meta">0:00-0:15 ｜ ギターイントロ</div>
+          <div class="codes">C#m → B→N.C.</div>
+        </button>
+        <button class="block" data-sec="24" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:24</span></div>
+          <div class="meta">0:15-0:39 ｜ 午前0時～</div>
+          <div class="codes">C#m → C#m</div>
+        </button>
+        <button class="block" data-sec="22" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>B①</b><span class="dur">0:22</span></div>
+          <div class="meta">0:40-1:02 ｜ 車走らせる～</div>
+          <div class="codes">A → G#→N.C.</div>
+        </button>
+        <button class="block" data-sec="23" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:23</span></div>
+          <div class="meta">1:04-1:27 ｜ もっと激しい～</div>
+          <div class="codes">C#m → C#m→N.C.</div>
+        </button>
+        <button class="block" data-sec="16" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:16</span></div>
+          <div class="meta">1:27-1:43 ｜ サビ後イントロリフ</div>
+          <div class="codes">C#m → F#</div>
+        </button>
+        <button class="block" data-sec="24" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:24</span></div>
+          <div class="meta">1:43-2:07 ｜ 中途半端な～</div>
+          <div class="codes">C#m → C#m</div>
+        </button>
+        <button class="block" data-sec="25" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>B②</b><span class="dur">0:25</span></div>
+          <div class="meta">2:06-2:31 ｜ きっと誰かが～</div>
+          <div class="codes">A → G#→N.C.</div>
+        </button>
+        <button class="block" data-sec="23" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>サビ②～Solo</b><span class="dur">0:23</span></div>
+          <div class="meta">2:31-2:54 ｜ もっと心まで～</div>
+          <div class="codes">C#m → C#m→N.C.</div>
+        </button>
+        <button class="block" data-sec="25" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>Guitar Solo</b><span class="dur">0:25</span></div>
+          <div class="meta">2:54-3:19 ｜ ギターソロ</div>
+          <div class="codes">A → B→N.C.</div>
+        </button>
+        <button class="block" data-sec="35" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>ラスサビ</b><span class="dur">0:35</span></div>
+          <div class="meta">3:20-3:55 ｜ もっと激しい～</div>
+          <div class="codes">C#m → C#m→N.C.</div>
+        </button>
+        <button class="block" data-sec="23" data-song="0" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:23</span></div>
+          <div class="meta">3:55-4:18 ｜ エンディングリフ</div>
+          <div class="codes">C#m → C#m</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="め組のひと" data-original="1">
+      <div class="parent">
+        <div class="num">2</div>
+        <h2>め組のひと</h2>
+        <div>Key Bm / BPM 116目安</div>
+        <div class="full">原曲尺 3:38</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="12" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:12</span></div>
+          <div class="meta">0:00-0:12 ｜ イントロ</div>
+          <div class="codes">Bm → F#/C#</div>
+        </button>
+        <button class="block" data-sec="7" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:07</span></div>
+          <div class="meta">0:12-0:19 ｜ いなせだね～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="7" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>①Aメロ</b><span class="dur">0:07</span></div>
+          <div class="meta">0:20-0:27 ｜ 涼し気な～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="10" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>ブリッジ</b><span class="dur">0:10</span></div>
+          <div class="meta">0:27-0:37 ｜ -</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="16" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>①Aメロ’</b><span class="dur">0:16</span></div>
+          <div class="meta">0:38-0:54 ｜ 怪しい～</div>
+          <div class="codes">DM7 → F#/C#</div>
+        </button>
+        <button class="block" data-sec="25" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>①Bメロ</b><span class="dur">0:25</span></div>
+          <div class="meta">0:55-1:19 ｜ Baby～</div>
+          <div class="codes">Bm → F#/C#</div>
+        </button>
+        <button class="block" data-sec="17" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>①サビ</b><span class="dur">0:17</span></div>
+          <div class="meta">1:20-1:37 ｜ いなせだね</div>
+          <div class="codes">Bm → F#/C#</div>
+        </button>
+        <button class="block" data-sec="19" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:19</span></div>
+          <div class="meta">1:37-1:55 ｜ -</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="10" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:10</span></div>
+          <div class="meta">1:56-2:04 ｜ 小粋だね～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="8" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>A&#x27;②</b><span class="dur">0:08</span></div>
+          <div class="meta">2:05-2:13 ｜ ひと夏の～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="9" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>ブリッジ</b><span class="dur">0:09</span></div>
+          <div class="meta">2:13-2:22 ｜ -</div>
+          <div class="codes">Bm → Bm→N.C.</div>
+        </button>
+        <button class="block" data-sec="41" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>展開②</b><span class="dur">0:41</span></div>
+          <div class="meta">2:23-3:04 ｜ 夏に繰り出した～</div>
+          <div class="codes">DM7 → F#/C#</div>
+        </button>
+        <button class="block" data-sec="16" data-song="1" aria-pressed="false">
+          <div class="block-main"><b>Ending</b><span class="dur">0:16</span></div>
+          <div class="meta">3:05-3:21 ｜ いなせだね～</div>
+          <div class="codes">Bm → Bm→N.C.</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="Honey Dripper" data-original="2">
+      <div class="parent">
+        <div class="num">3</div>
+        <h2>Honey Dripper</h2>
+        <div>Key Bm / BPM 164</div>
+        <div class="full">原曲尺 4:33</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="33" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:33</span></div>
+          <div class="meta">0:00-0:33 ｜ Guitar→All In</div>
+          <div class="codes">Bm → A</div>
+        </button>
+        <button class="block" data-sec="23" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:23</span></div>
+          <div class="meta">0:36-0:59 ｜ 世間の～</div>
+          <div class="codes">Bm → A</div>
+        </button>
+        <button class="block" data-sec="5" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>B①</b><span class="dur">0:05</span></div>
+          <div class="meta">0:59-1:04 ｜ スリル～</div>
+          <div class="codes">G → A#dim</div>
+        </button>
+        <button class="block" data-sec="11" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:11</span></div>
+          <div class="meta">1:04-1:15 ｜ honey～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="10" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:10</span></div>
+          <div class="meta">1:16-1:26 ｜ リフ</div>
+          <div class="codes">Riff E→F# → A</div>
+        </button>
+        <button class="block" data-sec="24" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:24</span></div>
+          <div class="meta">1:27-1:51 ｜ 悪魔と～</div>
+          <div class="codes">Bm → A</div>
+        </button>
+        <button class="block" data-sec="5" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>B②</b><span class="dur">0:05</span></div>
+          <div class="meta">1:51-1:56 ｜ 手当り～</div>
+          <div class="codes">G → A#dim</div>
+        </button>
+        <button class="block" data-sec="12" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>サビ②</b><span class="dur">0:12</span></div>
+          <div class="meta">1:56-2:08 ｜ honey～</div>
+          <div class="codes">Bm → A</div>
+        </button>
+        <button class="block" data-sec="24" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Bridge①</b><span class="dur">0:24</span></div>
+          <div class="meta">2:08-2:32 ｜ 今夜も～</div>
+          <div class="codes">G → G→N.C.</div>
+        </button>
+        <button class="block" data-sec="35" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Guitar Solo</b><span class="dur">0:35</span></div>
+          <div class="meta">2:32-3:07 ｜ ギターソロ</div>
+          <div class="codes">Bm → A</div>
+        </button>
+        <button class="block" data-sec="24" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Bridge②</b><span class="dur">0:24</span></div>
+          <div class="meta">3:07-3:31 ｜ 今夜も～</div>
+          <div class="codes">G → G→N.C.</div>
+        </button>
+        <button class="block" data-sec="23" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Last Chorus</b><span class="dur">0:23</span></div>
+          <div class="meta">3:31-3:54 ｜ honey～</div>
+          <div class="codes">Bm → Bm</div>
+        </button>
+        <button class="block" data-sec="33" data-song="2" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:33</span></div>
+          <div class="meta">3:54-4:27 ｜ 単音リフ→rit.</div>
+          <div class="codes">Riff E→F# → F#m</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="六本木心中" data-original="3">
+      <div class="parent">
+        <div class="num">4</div>
+        <h2>六本木心中</h2>
+        <div>Key Dm / BPM ≒150</div>
+        <div class="full">原曲尺 5:14</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="26" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>Intro①</b><span class="dur">0:26</span></div>
+          <div class="meta">0:00-0:26 ｜ Keys→All In</div>
+          <div class="codes">Dm → C7</div>
+        </button>
+        <button class="block" data-sec="18" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>Intro②</b><span class="dur">0:18</span></div>
+          <div class="meta">0:26-0:44 ｜ Keys→All In</div>
+          <div class="codes">Dm → C7</div>
+        </button>
+        <button class="block" data-sec="25" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>①Aメロ</b><span class="dur">0:25</span></div>
+          <div class="meta">0:45-1:10 ｜ だけど心なんて</div>
+          <div class="codes">Gm → A</div>
+        </button>
+        <button class="block" data-sec="13" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>B①</b><span class="dur">0:13</span></div>
+          <div class="meta">1:10-1:23 ｜ この街は～</div>
+          <div class="codes">Gm → A</div>
+        </button>
+        <button class="block" data-sec="25" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:25</span></div>
+          <div class="meta">1:24-1:49 ｜ 櫻吹雪に～</div>
+          <div class="codes">Dm → A7</div>
+        </button>
+        <button class="block" data-sec="11" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:11</span></div>
+          <div class="meta">1:50-2:01 ｜ 間奏</div>
+          <div class="codes">Dm → C7</div>
+        </button>
+        <button class="block" data-sec="25" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:25</span></div>
+          <div class="meta">2:01-2:26 ｜ 遊び相手となら～</div>
+          <div class="codes">Dm → Dm</div>
+        </button>
+        <button class="block" data-sec="14" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>B②</b><span class="dur">0:14</span></div>
+          <div class="meta">2:27-2:41 ｜ 夜更けに～</div>
+          <div class="codes">Gm → A</div>
+        </button>
+        <button class="block" data-sec="26" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>サビ②</b><span class="dur">0:26</span></div>
+          <div class="meta">2:41-3:07 ｜ そっと横顔～</div>
+          <div class="codes">Dm → A7</div>
+        </button>
+        <button class="block" data-sec="24" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>Gt.solo</b><span class="dur">0:24</span></div>
+          <div class="meta">3:07-3:31 ｜ Keys Arp→in BD</div>
+          <div class="codes">Dm → A/C#</div>
+        </button>
+        <button class="block" data-sec="26" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>Last Chorus</b><span class="dur">0:26</span></div>
+          <div class="meta">3:31-3:57 ｜ 櫻吹雪に～</div>
+          <div class="codes">Dm → A7</div>
+        </button>
+        <button class="block" data-sec="73" data-song="3" aria-pressed="false">
+          <div class="block-main"><b>Ending</b><span class="dur">1:13</span></div>
+          <div class="meta">3:57-5:10 ｜ Can’t Live Without You babe.</div>
+          <div class="codes">Dm → Dm</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="あゝ無情" data-original="4">
+      <div class="parent">
+        <div class="num">5</div>
+        <h2>あゝ無情</h2>
+        <div>Key Em / BPM 144</div>
+        <div class="full">原曲尺 4:33</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="15" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:15</span></div>
+          <div class="meta">0:00-0:15 ｜ あゝ無情～</div>
+          <div class="codes">Esus2 → Em7</div>
+        </button>
+        <button class="block" data-sec="26" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:26</span></div>
+          <div class="meta">0:15-0:41 ｜ きれいでしょ～</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="18" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>B①</b><span class="dur">0:18</span></div>
+          <div class="meta">0:42-1:00 ｜ 涙は～</div>
+          <div class="codes">Am → B7</div>
+        </button>
+        <button class="block" data-sec="27" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:27</span></div>
+          <div class="meta">1:00-1:27 ｜ サングラス～</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="14" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:14</span></div>
+          <div class="meta">1:27-1:41 ｜ 間奏</div>
+          <div class="codes">CM7 → B7</div>
+        </button>
+        <button class="block" data-sec="26" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:26</span></div>
+          <div class="meta">1:41-2:07 ｜ ねえ、わたし～</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="20" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>B②</b><span class="dur">0:20</span></div>
+          <div class="meta">2:07-2:27 ｜ 他の誰か～</div>
+          <div class="codes">Am → Em</div>
+        </button>
+        <button class="block" data-sec="28" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>サビ②</b><span class="dur">0:28</span></div>
+          <div class="meta">2:28-2:56 ｜ くちびるが～</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="25" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>Guitar Solo</b><span class="dur">0:25</span></div>
+          <div class="meta">2:56-3:21 ｜ ギターソロ</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="23" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>ラスサビ</b><span class="dur">0:23</span></div>
+          <div class="meta">3:21-3:44 ｜ サングラス～</div>
+          <div class="codes">Em → Em</div>
+        </button>
+        <button class="block" data-sec="49" data-song="4" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:49</span></div>
+          <div class="meta">3:44-4:33 ｜ あゝ無情～</div>
+          <div class="codes">Esus2 → Em7</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="WON&#x27;T BE LONG" data-original="5">
+      <div class="parent">
+        <div class="num">6</div>
+        <h2>WON&#x27;T BE LONG</h2>
+        <div>Key Bm / BPM 104</div>
+        <div class="full">原曲尺 5:13</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="20" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Intro①</b><span class="dur">0:20</span></div>
+          <div class="meta">0:00-0:20 ｜ オルゴール</div>
+          <div class="codes">— → —</div>
+        </button>
+        <button class="block" data-sec="19" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Intro②</b><span class="dur">0:19</span></div>
+          <div class="meta">0:20-0:39 ｜ Synth</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="20" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Hook</b><span class="dur">0:20</span></div>
+          <div class="meta">0:39-0:59 ｜ OlyOly～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="20" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Verse①</b><span class="dur">0:20</span></div>
+          <div class="meta">0:59-1:19 ｜ たりない頭なら</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="18" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Chorus①</b><span class="dur">0:18</span></div>
+          <div class="meta">1:19-1:37 ｜ WON&#x27;T BE LONG～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="19" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Verse②</b><span class="dur">0:19</span></div>
+          <div class="meta">1:37-1:56 ｜ いつのまにか～</div>
+          <div class="codes">GM7 → F#</div>
+        </button>
+        <button class="block" data-sec="17" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Chorus②</b><span class="dur">0:17</span></div>
+          <div class="meta">1:56-2:13 ｜ WON&#x27;T BE LONG～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="20" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:20</span></div>
+          <div class="meta">2:13-2:33 ｜ 間奏</div>
+          <div class="codes">— → —</div>
+        </button>
+        <button class="block" data-sec="17" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Develop</b><span class="dur">0:17</span></div>
+          <div class="meta">2:33-2:50 ｜ 恥もかいて～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="18" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Verse②</b><span class="dur">0:18</span></div>
+          <div class="meta">2:50-3:08 ｜ いつのまにか</div>
+          <div class="codes">GM7 → F#</div>
+        </button>
+        <button class="block" data-sec="19" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Chorus③</b><span class="dur">0:19</span></div>
+          <div class="meta">3:08-3:27 ｜ WON&#x27;T BE LONG～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="27" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Hook / 間</b><span class="dur">0:27</span></div>
+          <div class="meta">3:27-3:54 ｜ OLY OLY～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="38" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Last Chorus</b><span class="dur">0:38</span></div>
+          <div class="meta">3:54-4:32 ｜ WON&#x27;T BE LONG～</div>
+          <div class="codes">Em → Bm</div>
+        </button>
+        <button class="block" data-sec="41" data-song="5" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:41</span></div>
+          <div class="meta">4:32-5:13 ｜ OLY OLY～</div>
+          <div class="codes">Em → Bm</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="DESIRE -情熱-" data-original="6">
+      <div class="parent">
+        <div class="num">7</div>
+        <h2>DESIRE -情熱-</h2>
+        <div>Key F#m / BPM 161</div>
+        <div class="full">原曲尺 4:24</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="27" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:27</span></div>
+          <div class="meta">0:00-0:27 ｜ リフ→ Get up～</div>
+          <div class="codes">F#m7 → E</div>
+        </button>
+        <button class="block" data-sec="24" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:24</span></div>
+          <div class="meta">0:27-0:51 ｜ やり切れない～</div>
+          <div class="codes">F#m7 → F#m7</div>
+        </button>
+        <button class="block" data-sec="26" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>B①</b><span class="dur">0:26</span></div>
+          <div class="meta">0:51-1:17 ｜ そう みんな～</div>
+          <div class="codes">Bm7 → C#</div>
+        </button>
+        <button class="block" data-sec="28" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:28</span></div>
+          <div class="meta">1:18-1:46 ｜ まっさかさまに～</div>
+          <div class="codes">C#m7 → N.C.</div>
+        </button>
+        <button class="block" data-sec="24" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>間奏 / Solo</b><span class="dur">0:24</span></div>
+          <div class="meta">1:46-2:10 ｜ ギターソロ</div>
+          <div class="codes">F#m7 → E</div>
+        </button>
+        <button class="block" data-sec="24" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:24</span></div>
+          <div class="meta">2:10-2:34 ｜ 腕を離して～</div>
+          <div class="codes">F#m7 → F#m7</div>
+        </button>
+        <button class="block" data-sec="27" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>B②</b><span class="dur">0:27</span></div>
+          <div class="meta">2:34-3:01 ｜ そう 多分～</div>
+          <div class="codes">Bm7 → C#</div>
+        </button>
+        <button class="block" data-sec="29" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>サビ②</b><span class="dur">0:29</span></div>
+          <div class="meta">3:00-3:29 ｜ ぶつかり合って～</div>
+          <div class="codes">C#m7 → N.C.</div>
+        </button>
+        <button class="block" data-sec="6" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:06</span></div>
+          <div class="meta">3:29-3:35 ｜ 短い間奏</div>
+          <div class="codes">F#m7 → C#m7</div>
+        </button>
+        <button class="block" data-sec="28" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>ラスサビ</b><span class="dur">0:28</span></div>
+          <div class="meta">3:35-4:03 ｜ まっさかさまに～</div>
+          <div class="codes">C#m7 → N.C.</div>
+        </button>
+        <button class="block" data-sec="21" data-song="6" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:21</span></div>
+          <div class="meta">4:03-4:24 ｜ Get up～</div>
+          <div class="codes">F#m7 → F#m</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="Choo Choo TRAIN" data-original="7">
+      <div class="parent">
+        <div class="num">8</div>
+        <h2>Choo Choo TRAIN</h2>
+        <div>Key Db Major / BPM 115</div>
+        <div class="full">原曲尺 4:39</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="25" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:25</span></div>
+          <div class="meta">0:00-0:25 ｜ イントロ</div>
+          <div class="codes">N.C. → Ebm7/Ab</div>
+        </button>
+        <button class="block" data-sec="25" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Chorus①</b><span class="dur">0:25</span></div>
+          <div class="meta">0:25-0:50 ｜ Fun Fun～</div>
+          <div class="codes">GbM7 → Bbm7</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Verse①</b><span class="dur">0:17</span></div>
+          <div class="meta">0:50-1:07 ｜ まだ知らない～</div>
+          <div class="codes">Bbm7/Eb → Aaug</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Pre①</b><span class="dur">0:17</span></div>
+          <div class="meta">1:07-1:24 ｜ 誰も cry～</div>
+          <div class="codes">GbM7 → Bbm7/Db</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Verse②</b><span class="dur">0:17</span></div>
+          <div class="meta">1:24-1:41 ｜ 月明かりに～</div>
+          <div class="codes">Bbm7/Eb → Aaug</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Pre②</b><span class="dur">0:17</span></div>
+          <div class="meta">1:41-1:58 ｜ 胸に Who&#x27;s～</div>
+          <div class="codes">Gbm7 → Ab</div>
+        </button>
+        <button class="block" data-sec="25" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Chorus②</b><span class="dur">0:25</span></div>
+          <div class="meta">1:58-2:23 ｜ Fun Fun～</div>
+          <div class="codes">GbM7 → Bbm7</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Verse③</b><span class="dur">0:17</span></div>
+          <div class="meta">2:23-2:40 ｜ 変わりそうな～</div>
+          <div class="codes">Bbm7/Eb → Aaug</div>
+        </button>
+        <button class="block" data-sec="18" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Pre③</b><span class="dur">0:18</span></div>
+          <div class="meta">2:37-2:55 ｜ ビルの～</div>
+          <div class="codes">GbM7 → Ab</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Chorus③</b><span class="dur">0:17</span></div>
+          <div class="meta">2:55-3:12 ｜ Fun Fun～</div>
+          <div class="codes">GbM7 → Ebm9/Ab</div>
+        </button>
+        <button class="block" data-sec="17" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Guitar Solo</b><span class="dur">0:17</span></div>
+          <div class="meta">3:12-3:29 ｜ ギターソロ</div>
+          <div class="codes">AM9 → Ab</div>
+        </button>
+        <button class="block" data-sec="34" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Chorus④</b><span class="dur">0:34</span></div>
+          <div class="meta">3:29-4:03 ｜ Fun Fun～</div>
+          <div class="codes">GbM7 → Ebm7/Ab</div>
+        </button>
+        <button class="block" data-sec="30" data-song="7" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:30</span></div>
+          <div class="meta">4:03-4:33 ｜ La la～</div>
+          <div class="codes">GbM7 → DbM7</div>
+        </button></div>
+    </section>
+<section class="song" draggable="true" data-title="ダンシング・ヒーロー" data-original="8">
+      <div class="parent">
+        <div class="num">9</div>
+        <h2>ダンシング・ヒーロー</h2>
+        <div>Key F#m / BPM 132</div>
+        <div class="full">原曲尺 3:48</div><button class="songCutBtn" type="button">曲ごとCUT</button>
+      </div>
+      <div class="branch"></div>
+      <div class="children">
+        <button class="block" data-sec="16" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Intro</b><span class="dur">0:16</span></div>
+          <div class="meta">0:00-0:16 ｜ シンセイントロ</div>
+          <div class="codes">F#m → C#/E#</div>
+        </button>
+        <button class="block" data-sec="29" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>A①</b><span class="dur">0:29</span></div>
+          <div class="meta">0:16-0:45 ｜ 愛してるよなんて～</div>
+          <div class="codes">F#m → C#</div>
+        </button>
+        <button class="block" data-sec="4" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Turn</b><span class="dur">0:04</span></div>
+          <div class="meta">0:45-0:49 ｜ サビ前</div>
+          <div class="codes">C# → C#</div>
+        </button>
+        <button class="block" data-sec="24" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>サビ①</b><span class="dur">0:24</span></div>
+          <div class="meta">0:49-1:13 ｜ 今夜だけでも～</div>
+          <div class="codes">F#m → E</div>
+        </button>
+        <button class="block" data-sec="15" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>間奏</b><span class="dur">0:15</span></div>
+          <div class="meta">1:13-1:28 ｜ 間奏</div>
+          <div class="codes">F#m → C#/E#</div>
+        </button>
+        <button class="block" data-sec="31" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>A②</b><span class="dur">0:31</span></div>
+          <div class="meta">1:28-1:59 ｜ 君が好きだなんて～</div>
+          <div class="codes">F#m → C#</div>
+        </button>
+        <button class="block" data-sec="4" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Turn</b><span class="dur">0:04</span></div>
+          <div class="meta">1:59-2:03 ｜ サビ前</div>
+          <div class="codes">C# → C#</div>
+        </button>
+        <button class="block" data-sec="31" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>サビ②</b><span class="dur">0:31</span></div>
+          <div class="meta">1:59-2:30 ｜ 今夜だけでも～</div>
+          <div class="codes">F#m → E</div>
+        </button>
+        <button class="block" data-sec="10" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Inst</b><span class="dur">0:10</span></div>
+          <div class="meta">2:35-2:45 ｜ Instrumental</div>
+          <div class="codes">F#m → F#m/E/F#</div>
+        </button>
+        <button class="block" data-sec="15" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Bridge</b><span class="dur">0:15</span></div>
+          <div class="meta">2:45-3:00 ｜ ビーズの～</div>
+          <div class="codes">F#m → C#</div>
+        </button>
+        <button class="block" data-sec="4" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Turn</b><span class="dur">0:04</span></div>
+          <div class="meta">3:00-3:04 ｜ サビ前</div>
+          <div class="codes">C# → C#</div>
+        </button>
+        <button class="block" data-sec="33" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>ラスサビ</b><span class="dur">0:33</span></div>
+          <div class="meta">3:01-3:34 ｜ 今夜だけでも～</div>
+          <div class="codes">F#m → E</div>
+        </button>
+        <button class="block" data-sec="12" data-song="8" aria-pressed="false">
+          <div class="block-main"><b>Outro</b><span class="dur">0:12</span></div>
+          <div class="meta">3:34-3:46 ｜ Ending</div>
+          <div class="codes">F#m → F#m</div>
+        </button></div>
+    </section></div>
+</main>
+<aside class="side"><h3>全体像 / SET LIST</h3><div class="miniNote">青＝残す　灰＝CUT<br><b>ここをドラッグして曲順変更</b></div><div id="overview"></div></aside>
+</div>
+<div class="joinModalBackdrop" id="joinModalBackdrop" aria-hidden="true">
+  <div class="joinModal" role="dialog" aria-modal="true" aria-labelledby="joinModalTitle">
+    <div class="joinModalHead">
+      <h3 id="joinModalTitle">曲間カウント</h3>
+      <div class="joinRoute" id="joinRoute">前曲 → 次曲</div>
+    </div>
+    <div class="joinModalBody">
+      <div class="countModeRow">
+        <button class="modeBtn" data-mode="overlay">前の曲の最後の音にかぶせてカウント</button>
+        <button class="modeBtn" data-mode="closeThen">ジャン！で締めてからカウント</button>
+      </div>
+      <div class="modeHelp" id="modeHelp">
+        <b>かぶせ：</b>前曲の最後の音を残し、その上で次曲のカウントを開始（「ジャン！」で締めない）。総時間への追加は0秒。<br>
+        <b>締めてから：</b>前曲を「ジャン！」で締め、その後にカウント開始。カウント分を総時間へ加算。
+      </div>
+      <div class="joinGrid">
+        <div class="field">
+          <label>拍数</label>
+          <select id="joinBeats">
+            <option value="1">1拍</option>
+            <option value="2">2拍</option>
+            <option value="3">3拍</option>
+            <option value="4" selected>4拍</option>
+            <option value="8">8拍（2小節・4/4）</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>BPM</label>
+          <input id="joinBpm" type="number" min="40" max="240" step="1" value="120">
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+        <button class="joinAction" id="useNextBpm">次曲BPMを使用</button>
+        <button class="joinAction" id="previewCount">▶ メトロノーム試聴</button>
+      </div>
+      <div class="joinPreview" id="joinPreview">
+        <b>プレビュー</b><br>設定すると、ここにカウント時間を表示します。
+      </div>
+    </div>
+    <div class="joinModalFoot">
+      <div class="left"><button class="joinAction danger" id="clearJoin">標準に戻す</button></div>
+      <div class="right">
+        <button class="joinAction" id="closeJoin">閉じる</button>
+        <button class="joinAction primary" id="saveJoin">保存</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<div class="blockModalBackdrop" id="blockModalBackdrop" aria-hidden="true">
+  <div class="blockModal" role="dialog" aria-modal="true" aria-labelledby="blockModalTitle">
+    <div class="blockModalHead">
+      <h3 id="blockModalTitle">ブロック尺を編集</h3>
+      <div class="blockModalRoute" id="blockModalRoute">曲名 / ブロック名</div>
+    </div>
+    <div class="blockModalBody">
+      <div class="blockDurRow">
+        <div class="blockDurBox">
+          <div class="k">元のブロック尺</div>
+          <div class="v" id="blockOriginalView">0:00</div>
+        </div>
+        <div class="blockDurBox">
+          <div class="k">使用する尺</div>
+          <div class="v" id="blockEffectiveView">0:00</div>
+        </div>
+      </div>
+      <div class="blockSecondsField">
+        <label>使用する秒数（手入力）</label>
+        <input id="blockSecondsInput" type="number" min="0" max="600" step="1" inputmode="numeric">
+      </div>
+      <div class="blockQuick">
+        <button class="joinAction" id="blockUseOriginal">原尺に戻す</button>
+        <button class="joinAction danger" id="blockFullCut">0秒 / 全CUT</button>
+      </div>
+      <div class="blockEditNote">
+        ブロック全部を消す必要はありません。例：25秒ブロックを12秒だけ使う場合は「12」と入力。<br>
+        元尺より長い値も入力できます（伸ばし・間などを仮置きしたい場合）。
+      </div>
+    </div>
+    <div class="blockModalFoot">
+      <button class="joinAction" id="closeBlockEdit">閉じる</button>
+      <button class="joinAction primary" id="saveBlockEdit">保存</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE=2420;
+const SONG_FULL = {
+  "夢見る少女じゃいられない":258,
+  "め組のひと":218,
+  "Honey Dripper":273,
+  "六本木心中":314,
+  "あゝ無情":273,
+  "WON'T BE LONG":313,
+  "DESIRE -情熱-":264,
+  "Choo Choo TRAIN":279,
+  "ダンシング・ヒーロー":228
+};
+const SONG_BPM = {
+  "夢見る少女じゃいられない":160,
+  "め組のひと":116,
+  "Honey Dripper":164,
+  "六本木心中":150,
+  "あゝ無情":144,
+  "WON'T BE LONG":104,
+  "DESIRE -情熱-":161,
+  "Choo Choo TRAIN":115,
+  "ダンシング・ヒーロー":132
+};
+let joinSettings = JSON.parse(localStorage.getItem('firststepJoinSettingsV4') || localStorage.getItem('firststepJoinSettingsV3') || '{}');
+const pairKey=(a,b)=>`${a}>${b}`;
+const normalizeJoin=(cfg,nextTitle)=>{
+  const nextBpm=SONG_BPM[nextTitle]||120;
+  if(!cfg) return {mode:'overlay',beats:4,bpm:nextBpm};
+  let mode=cfg.mode;
+  if(mode==='inside' || mode==='none' || !mode) mode='overlay';
+  if(mode==='added') mode='closeThen';
+  if(mode!=='overlay' && mode!=='closeThen') mode='overlay';
+  return {mode,beats:Number(cfg.beats)||4,bpm:Number(cfg.bpm)||nextBpm};
+};
+const countSeconds=(cfg)=>{
+  if(!cfg || cfg.mode!=='closeThen') return 0;
+  const bpm=Math.max(1,Number(cfg.bpm)||120);
+  return (60/bpm)*(Number(cfg.beats)||4);
+};
+
+let blockDurations = JSON.parse(localStorage.getItem('firststepBlockDurationsV4') || '{}');
+let songCutSnapshots = JSON.parse(localStorage.getItem('firststepSongCutSnapshotsV42') || '{}');
+
+const effectiveSec=b=>{
+  const uid=String(b.dataset.uid);
+  const original=Number(b.dataset.sec)||0;
+  if(Object.prototype.hasOwnProperty.call(blockDurations,uid)){
+    const v=Number(blockDurations[uid]);
+    return Number.isFinite(v) ? Math.max(0,v) : original;
+  }
+  return original;
+};
+const blockDelta=b=>effectiveSec(b)-(Number(b.dataset.sec)||0);
+
+const songIsFullyCut=s=>{
+  const bs=[...s.querySelectorAll('.block')];
+  return bs.length>0 && bs.every(b=>effectiveSec(b)===0);
+};
+const songKey=s=>String(s.dataset.original);
+
+function cutWholeSong(s){
+  const key=songKey(s);
+  const bs=[...s.querySelectorAll('.block')];
+
+  // 現在の個別編集状態を保存してから全ブロック0秒化
+  const snap={};
+  bs.forEach(b=>{
+    const uid=String(b.dataset.uid);
+    snap[uid]=effectiveSec(b);
+    blockDurations[uid]=0;
+  });
+  songCutSnapshots[key]=snap;
+  update();
+}
+
+function restoreWholeSong(s){
+  const key=songKey(s);
+  const bs=[...s.querySelectorAll('.block')];
+  const snap=songCutSnapshots[key];
+
+  bs.forEach(b=>{
+    const uid=String(b.dataset.uid);
+    const original=Number(b.dataset.sec)||0;
+
+    if(snap && Object.prototype.hasOwnProperty.call(snap,uid)){
+      const v=Number(snap[uid]);
+      if(Math.abs(v-original)<0.001) delete blockDurations[uid];
+      else blockDurations[uid]=v;
+    }else{
+      delete blockDurations[uid];
+    }
+  });
+
+  delete songCutSnapshots[key];
+  update();
+}
+
+function toggleWholeSong(s){
+  if(songIsFullyCut(s)) restoreWholeSong(s);
+  else cutWholeSong(s);
+}
+
+function refreshSongCutVisuals(){
+  songs().forEach(s=>{
+    const cut=songIsFullyCut(s);
+    s.classList.toggle('songCut',cut);
+    const btn=s.querySelector('.songCutBtn');
+    if(btn){
+      btn.classList.toggle('isCut',cut);
+      btn.textContent=cut?'曲を戻す':'曲ごとCUT';
+      btn.title=cut?'全CUT前の状態へ戻します':'この曲の全ブロックを0秒にします';
+    }
+  });
+}
+
+
+const fmt=s=>`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+const songsBox=document.getElementById('songs');
+
+function songs(){return [...songsBox.querySelectorAll('.song')]}
+function blocks(){return [...songsBox.querySelectorAll('.block')]}
+
+const savedCuts=new Set(JSON.parse(localStorage.getItem('firststepCutsV2')||'[]'));
+blocks().forEach((b,i)=>{
+  b.dataset.uid=i;
+  if(savedCuts.has(i) && !Object.prototype.hasOwnProperty.call(blockDurations,String(i))) blockDurations[String(i)]=0;
+});
+
+const savedOrder=JSON.parse(localStorage.getItem('firststepOrderV2')||'null');
+if(savedOrder){
+  savedOrder.forEach(orig=>{const el=songs().find(s=>Number(s.dataset.original)===orig); if(el)songsBox.appendChild(el)})
+}
+
+function refreshBlockVisuals(){
+  blocks().forEach(b=>{
+    const original=Number(b.dataset.sec)||0;
+    const eff=effectiveSec(b);
+    const dur=b.querySelector('.dur');
+    b.classList.toggle('cut',eff===0);
+    b.classList.toggle('partial',eff>0 && Math.abs(eff-original)>0.001);
+    b.setAttribute('aria-pressed',eff===0?'true':'false');
+    if(dur){
+      dur.textContent=fmt(Math.round(eff));
+      dur.classList.toggle('changed',Math.abs(eff-original)>0.001);
+      dur.title=Math.abs(eff-original)>0.001 ? `元尺 ${fmt(original)}` : '';
+    }
+  });
+}
+
+function update(){
+ refreshBlockVisuals();
+ refreshSongCutVisuals();
+
+ let editDelta=0;
+ blocks().forEach(b=>{editDelta += blockDelta(b)});
+
+ const ss=songs();
+ let countAdd=0;
+ for(let i=0;i<ss.length-1;i++){
+   const key=pairKey(ss[i].dataset.original, ss[i+1].dataset.original);
+   const cfg=normalizeJoin(joinSettings[key],ss[i+1].dataset.title);
+   countAdd += countSeconds(cfg);
+ }
+ const rem=BASE+editDelta+countAdd;
+
+ const absEdit=Math.abs(Math.round(editDelta));
+ document.getElementById('editLabel').textContent=editDelta<=0?'短縮 −':'延長 +';
+ document.getElementById('cutTotal').textContent=fmt(absEdit);
+ document.getElementById('countAdded').textContent=fmt(Math.round(countAdd));
+ document.getElementById('countAddedPill').classList.toggle('on',countAdd>0.01);
+ document.getElementById('remain').textContent=fmt(Math.max(0,Math.round(rem)));
+ const st=document.getElementById('status');
+ st.classList.toggle('over',rem>2400); st.classList.toggle('safe',rem<=2400);
+
+ localStorage.setItem('firststepBlockDurationsV4',JSON.stringify(blockDurations));
+ localStorage.setItem('firststepSongCutSnapshotsV42',JSON.stringify(songCutSnapshots));
+ localStorage.setItem('firststepOrderV2',JSON.stringify(ss.map(s=>Number(s.dataset.original))));
+ localStorage.setItem('firststepJoinSettingsV4',JSON.stringify(joinSettings));
+ renderOverview();
+ renderCrossbar();
+}
+
+blocks().forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();openBlockEditor(b)}));
+songs().forEach(s=>{
+  const btn=s.querySelector('.songCutBtn');
+  if(btn){
+    btn.addEventListener('click',e=>{
+      e.preventDefault();
+      e.stopPropagation();
+      toggleWholeSong(s);
+    });
+  }
+});
+
+
+let drag=null;
+function bindDrag(){
+ songs().forEach(s=>{
+  s.addEventListener('dragstart',()=>{drag=s;s.classList.add('dragging')})
+  s.addEventListener('dragend',()=>{s.classList.remove('dragging');songs().forEach(x=>x.classList.remove('drag-over'));drag=null;update()})
+  s.addEventListener('dragover',e=>{e.preventDefault(); if(s!==drag)s.classList.add('drag-over')})
+  s.addEventListener('dragleave',()=>s.classList.remove('drag-over'))
+  s.addEventListener('drop',e=>{e.preventDefault();s.classList.remove('drag-over');if(!drag||drag===s)return;
+    const arr=songs(); const di=arr.indexOf(drag), ti=arr.indexOf(s);
+    if(di<ti)s.after(drag);else s.before(drag); update();
+  })
+ })
+}
+bindDrag();
+
+let miniDrag=null;
+function renderOverview(){
+ const ov=document.getElementById('overview');ov.innerHTML='';
+ songs().forEach((s,idx)=>{
+   let badge=s.querySelector('.orderBadge'); if(!badge){badge=document.createElement('span');badge.className='orderBadge';s.querySelector('.parent').appendChild(badge)} badge.textContent=`${idx+1}曲目`;
+   const bs=[...s.querySelectorAll('.block')];
+   const el=document.createElement('div');el.className='miniSong';el.draggable=true;el.dataset.original=s.dataset.original;
+   const title=s.dataset.title;
+   const segs=bs.map(b=>{
+     const eff=effectiveSec(b);
+     return `<span class="miniSeg ${eff===0?'cut':''}" style="flex:${Math.max(eff,.1)}"></span>`;
+   }).join('');
+   const allZero=bs.every(b=>effectiveSec(b)===0);
+   const baseFull=SONG_FULL[title]||0;
+   const songDelta=bs.reduce((a,b)=>a+blockDelta(b),0);
+   const kept=allZero?0:Math.max(0,baseFull+songDelta);
+   const wholeCut=allZero;
+   el.innerHTML=`<b>${idx+1}. ${title}<span class="dragHandle">☰</span></b>
+     <div class="miniBar">${segs}</div>
+     <div class="miniMeta"><span>構成 ${bs.length} block</span><span>現在 ${fmt(Math.round(kept))}</span></div>
+     <div class="miniSongActions">
+       <button class="miniSongCutBtn ${wholeCut?'isCut':''}" type="button">${wholeCut?'曲を戻す':'曲ごとCUT'}</button>
+     </div>`;
+   el.onclick=()=>s.scrollIntoView({behavior:'smooth',block:'center'});
+   const miniCutBtn=el.querySelector('.miniSongCutBtn');
+   miniCutBtn.onclick=(ev)=>{ev.stopPropagation();toggleWholeSong(s)};
+   el.addEventListener('dragstart',e=>{miniDrag=el;el.classList.add('dragging');e.dataTransfer.effectAllowed='move'});
+   el.addEventListener('dragend',()=>{el.classList.remove('dragging');[...ov.children].forEach(x=>x.classList.remove('drag-over'));miniDrag=null});
+   el.addEventListener('dragover',e=>{e.preventDefault();if(el!==miniDrag)el.classList.add('drag-over')});
+   el.addEventListener('dragleave',()=>el.classList.remove('drag-over'));
+   el.addEventListener('drop',e=>{
+      e.preventDefault();el.classList.remove('drag-over');if(!miniDrag||miniDrag===el)return;
+      const fromOrig=miniDrag.dataset.original, toOrig=el.dataset.original;
+      const fromSong=songs().find(x=>x.dataset.original===fromOrig);
+      const toSong=songs().find(x=>x.dataset.original===toOrig);
+      const arr=songs(), fi=arr.indexOf(fromSong), ti=arr.indexOf(toSong);
+      if(fi<ti)toSong.after(fromSong);else toSong.before(fromSong);
+      update();
+   });
+   ov.appendChild(el);
+ })
+}
+
+
+function renderCrossbar(){
+  const track=document.getElementById('crossTrack');
+  if(!track)return;
+  track.innerHTML='';
+  let totalCurrent=0;
+  const songData=songs().map(s=>{
+    const title=s.dataset.title;
+    const full=SONG_FULL[title]||0;
+    const bs=[...s.querySelectorAll('.block')];
+    const delta=bs.reduce((a,b)=>a+blockDelta(b),0);
+    const allZero=bs.every(b=>effectiveSec(b)===0);
+    const current=allZero?0:Math.max(0,full+delta);
+    const cut=Math.max(0,full-current);
+    totalCurrent+=current;
+    return {s,title,full,cut,current};
+  });
+
+  songData.forEach((d,idx)=>{
+    const el=document.createElement('div');
+    el.className='crossSong'+(d.current===0?' cutAll':'');
+    el.style.flex=`${Math.max(d.current,0.01)} 1 0px`;
+    el.title=`${idx+1}. ${d.title} / 現在 ${fmt(d.current)} / CUT ${fmt(d.cut)}`;
+
+    const active=[...d.s.querySelectorAll('.block')].filter(b=>effectiveSec(b)>0);
+    const first=active[0];
+    const last=active[active.length-1];
+    const getName=b=>b ? (b.querySelector('.block-main b')?.textContent.trim() || '—') : '全CUT';
+    const getCue=b=>{
+      if(!b) return '';
+      const meta=b.querySelector('.meta')?.textContent.trim() || '';
+      const parts=meta.split('｜').map(x=>x.trim());
+      return parts.length>1 ? parts.slice(1).join('｜') : meta;
+    };
+    const simplify=(name,cue)=>{
+      const n=(name||'').trim(), c=(cue||'').trim();
+      if(/Intro|イントロ/i.test(n)) return 'Intro';
+      if(/Outro|Ending/i.test(n)) return 'Outro';
+      if(/riff|リフ/i.test(c)) return 'リフ';
+      if(/solo|ソロ/i.test(n) || /solo|ソロ/i.test(c)) return 'Solo';
+      if(c && c !== '-' && c !== '間奏') return c.replace(/[～〜].*$/,'').slice(0,12);
+      if(/間奏/.test(n)) return '間奏';
+      if(/サビ|Chorus/i.test(n)) return 'サビ';
+      if(/A/.test(n)) return 'Aメロ';
+      if(/B/.test(n)) return 'Bメロ';
+      return n.slice(0,12) || '—';
+    };
+
+    const firstTxt=first ? simplify(getName(first),getCue(first)) : '全CUT';
+    const lastTxt=last ? simplify(getName(last),getCue(last)) : '全CUT';
+
+    el.innerHTML=`<div class="crossSongText">
+      <div class="crossTitle">${idx+1}. ${d.title}</div>
+      <div>
+        <div class="crossEdge start">${firstTxt}</div>
+        <div class="crossEdge end" style="margin-top:3px">${lastTxt}</div>
+      </div>
+      <div class="crossSongTime">${fmt(d.current)}</div>
+    </div>`;
+    el.onclick=()=>d.s.scrollIntoView({behavior:'smooth',block:'center'});
+    track.appendChild(el);
+
+    if(idx<songData.length-1){
+      const next=songData[idx+1];
+      const key=pairKey(d.s.dataset.original,next.s.dataset.original);
+      const cfg=normalizeJoin(joinSettings[key],next.title);
+      const slot=document.createElement('div');
+      slot.className='joinSlot';
+
+      const jb=document.createElement('button');
+      jb.className='joinBtn set';
+      jb.title='曲間カウントを設定';
+      const mini = `${cfg.mode==='closeThen'?'+':'↔'}${cfg.beats}拍`;
+      jb.innerHTML=`<span class="joinArrow">›</span><span class="joinMini">${mini}</span>`;
+      jb.onclick=(ev)=>{ev.stopPropagation();openJoinModal(d.s,next.s,key)};
+
+      const state=document.createElement('div');
+      state.className='joinState';
+      state.textContent = cfg.mode==='closeThen' ? `締め→${cfg.beats}拍` : `かぶせ ${cfg.beats}拍`;
+
+      slot.appendChild(jb);
+      slot.appendChild(state);
+      track.appendChild(slot);
+    }
+  });
+
+  const removed=Math.max(0,BASE-totalCurrent);
+  if(removed>0){
+    const ghost=document.createElement('div');
+    ghost.className='crossGhost';
+    ghost.style.flex=`${removed} 1 0px`;
+    ghost.title=`CUTで削除 ${fmt(removed)}`;
+    track.appendChild(ghost);
+  }
+
+  const limit=document.createElement('div');
+  limit.className='crossLimit';
+  track.appendChild(limit);
+  requestAnimationFrame(()=>{
+    const slots=track.querySelectorAll('.joinSlot').length;
+    const slotPx=52;
+    const timeWidth=Math.max(1,track.clientWidth-slots*slotPx);
+    limit.style.left=(slots*slotPx + timeWidth*(2400/BASE))+'px';
+  });
+}
+
+
+let currentBlock=null;
+const blockModalBackdrop=document.getElementById('blockModalBackdrop');
+const blockSecondsInput=document.getElementById('blockSecondsInput');
+
+function openBlockEditor(b){
+  currentBlock=b;
+  const song=b.closest('.song');
+  const title=song?.dataset.title || '';
+  const blockName=b.querySelector('.block-main b')?.textContent.trim() || 'ブロック';
+  const original=Number(b.dataset.sec)||0;
+  const eff=effectiveSec(b);
+  document.getElementById('blockModalRoute').textContent=`${title} / ${blockName}`;
+  document.getElementById('blockOriginalView').textContent=fmt(original);
+  blockSecondsInput.value=String(Math.round(eff));
+  updateBlockPreview();
+  blockModalBackdrop.classList.add('open');
+  blockModalBackdrop.setAttribute('aria-hidden','false');
+  setTimeout(()=>{blockSecondsInput.focus();blockSecondsInput.select()},50);
+}
+function closeBlockEditor(){
+  blockModalBackdrop.classList.remove('open');
+  blockModalBackdrop.setAttribute('aria-hidden','true');
+  currentBlock=null;
+}
+function updateBlockPreview(){
+  const v=Math.max(0,Number(blockSecondsInput.value)||0);
+  document.getElementById('blockEffectiveView').textContent=fmt(Math.round(v));
+}
+blockSecondsInput.oninput=updateBlockPreview;
+document.getElementById('blockUseOriginal').onclick=()=>{
+  if(!currentBlock)return;
+  blockSecondsInput.value=String(Number(currentBlock.dataset.sec)||0);
+  updateBlockPreview();
+};
+document.getElementById('blockFullCut').onclick=()=>{
+  blockSecondsInput.value='0';updateBlockPreview();
+};
+document.getElementById('saveBlockEdit').onclick=()=>{
+  if(!currentBlock)return;
+  const uid=String(currentBlock.dataset.uid);
+  const original=Number(currentBlock.dataset.sec)||0;
+  const v=Math.max(0,Math.min(600,Number(blockSecondsInput.value)||0));
+  if(Math.abs(v-original)<0.001) delete blockDurations[uid];
+  else blockDurations[uid]=v;
+  closeBlockEditor();update();
+};
+document.getElementById('closeBlockEdit').onclick=closeBlockEditor;
+blockModalBackdrop.addEventListener('click',e=>{if(e.target===blockModalBackdrop)closeBlockEditor()});
+
+let currentJoinKey=null, currentFromSong=null, currentToSong=null, tempMode='overlay';
+const modalBackdrop=document.getElementById('joinModalBackdrop');
+const bpmInput=document.getElementById('joinBpm');
+const beatsSelect=document.getElementById('joinBeats');
+
+function songEndLabel(s){
+  const a=[...s.querySelectorAll('.block')].filter(b=>effectiveSec(b)>0);
+  if(!a.length) return '全CUT';
+  return a[a.length-1].querySelector('.block-main b')?.textContent.trim() || 'END';
+}
+function songStartLabel(s){
+  const a=[...s.querySelectorAll('.block')].filter(b=>effectiveSec(b)>0);
+  if(!a.length) return '全CUT';
+  return a[0].querySelector('.block-main b')?.textContent.trim() || 'START';
+}
+function setMode(mode){
+  tempMode=mode;
+  document.querySelectorAll('.modeBtn').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  updateJoinPreview();
+}
+document.querySelectorAll('.modeBtn').forEach(b=>b.onclick=()=>setMode(b.dataset.mode));
+
+function openJoinModal(fromS,toS,key){
+  currentJoinKey=key; currentFromSong=fromS; currentToSong=toS;
+  const cfg=normalizeJoin(joinSettings[key],toS.dataset.title);
+  beatsSelect.value=String(cfg.beats||4);
+  bpmInput.value=String(cfg.bpm||SONG_BPM[toS.dataset.title]||120);
+  document.getElementById('joinRoute').textContent=
+    `${fromS.dataset.title}  [${songEndLabel(fromS)}]  →  [${songStartLabel(toS)}]  ${toS.dataset.title}`;
+  setMode(cfg.mode||'overlay');
+  modalBackdrop.classList.add('open');
+  modalBackdrop.setAttribute('aria-hidden','false');
+}
+function closeJoinModal(){
+  modalBackdrop.classList.remove('open');modalBackdrop.setAttribute('aria-hidden','true');
+}
+function updateJoinPreview(){
+  if(!currentToSong)return;
+  const beats=Number(beatsSelect.value)||4, bpm=Number(bpmInput.value)||120;
+  const secs=(60/bpm)*beats;
+  const modeText=tempMode==='closeThen'
+    ? 'ジャン！で締めてからカウント（総時間に加算）'
+    : '前の曲の最後の音にかぶせてカウント（総時間への追加0秒）';
+  document.getElementById('joinPreview').innerHTML=
+    `<b>${modeText}</b><br>${beats}拍 / ${bpm} BPM → ${secs.toFixed(2)}秒`+
+    (tempMode==='closeThen'?` を総時間へ追加`:`（前曲の終端に重ねる）`);
+}
+beatsSelect.onchange=updateJoinPreview;
+bpmInput.oninput=updateJoinPreview;
+document.getElementById('useNextBpm').onclick=()=>{
+  if(currentToSong){bpmInput.value=SONG_BPM[currentToSong.dataset.title]||120;updateJoinPreview()}
+};
+
+let audioCtx=null;
+document.getElementById('previewCount').onclick=async()=>{
+  const beats=Number(beatsSelect.value)||4, bpm=Number(bpmInput.value)||120;
+  if(!audioCtx)audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended')await audioCtx.resume();
+  const start=audioCtx.currentTime+0.05, interval=60/bpm;
+  for(let i=0;i<beats;i++){
+    const o=audioCtx.createOscillator(), g=audioCtx.createGain();
+    o.frequency.value=i===0?1200:850;
+    g.gain.setValueAtTime(0.0001,start+i*interval);
+    g.gain.exponentialRampToValueAtTime(i===0?0.22:0.14,start+i*interval+0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001,start+i*interval+0.07);
+    o.connect(g);g.connect(audioCtx.destination);
+    o.start(start+i*interval);o.stop(start+i*interval+0.08);
+  }
+};
+document.getElementById('saveJoin').onclick=()=>{
+  if(!currentJoinKey)return;
+  joinSettings[currentJoinKey]={
+    mode:tempMode==='closeThen'?'closeThen':'overlay',
+    beats:Number(beatsSelect.value)||4,
+    bpm:Number(bpmInput.value)||120
+  };
+  closeJoinModal();update();
+};
+document.getElementById('clearJoin').onclick=()=>{
+  if(currentJoinKey && currentToSong){
+    joinSettings[currentJoinKey]={mode:'overlay',beats:4,bpm:SONG_BPM[currentToSong.dataset.title]||120};
+  }
+  closeJoinModal();update();
+};
+document.getElementById('closeJoin').onclick=closeJoinModal;
+modalBackdrop.addEventListener('click',e=>{if(e.target===modalBackdrop)closeJoinModal()});
+document.addEventListener('keydown',e=>{if(e.key==='Escape'){closeJoinModal();closeBlockEditor()}});
+
+document.getElementById('reset').onclick=()=>{blockDurations={};songCutSnapshots={};localStorage.removeItem('firststepCutsV2');localStorage.removeItem('firststepSongCutSnapshotsV42');update()};
+document.getElementById('resetOrder').onclick=()=>{
+ [...songs()].sort((a,b)=>Number(a.dataset.original)-Number(b.dataset.original)).forEach(s=>songsBox.appendChild(s));update()
+};
+document.getElementById('print').onclick=()=>window.print();
+window.addEventListener('resize',()=>renderCrossbar());
+update();
+</script>
+
+</body></html>
