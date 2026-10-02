@@ -3400,7 +3400,7 @@ function updateJoinPreview(){
   if(!editingJoin)return;
   const beats=Number(document.getElementById('joinBeats').value)||4,bpm=Number(document.getElementById('joinBpm').value)||120;
   const s=(60/bpm)*beats;
-  document.getElementById('joinPreview').innerHTML=`<b>${tempMode==='overlay'?'前曲の最後の音にかぶせる':'ジャン！で締めてから'}</b><br>${beats}拍 / ${Math.round(bpm)} BPM / ${s.toFixed(2)}秒${tempMode==='overlay'?'（総時間への追加0秒）':' を総時間へ追加'}`;
+  document.getElementById('joinPreview').innerHTML=`<b>${tempMode==='overlay'?'前曲の最後の音にかぶせる':'ジャン！で締めてから'}</b><br>${beats}拍 / ${Math.round(bpm)} BPM / ${s.toFixed(2)}秒${tempMode==='overlay'?'（総時間への追加0秒・最後の音は残す）':' を総時間へ追加（締め音を鳴らし切ってからカウント）'}`;
 }
 document.getElementById('joinBeats').onchange=updateJoinPreview;
 document.getElementById('joinBpm').oninput=updateJoinPreview;
@@ -3459,7 +3459,7 @@ audio.ontimeupdate=()=>{
   if(d>0)audioSeek.value=String(Math.round(audio.currentTime/d*1000));
 };
 audioToggle.onclick=()=>audio.paused?audio.play():audio.pause();
-audioStop.onclick=()=>{playToken++;audio.pause();segmentEnd=null;transitionRun=false};
+audioStop.onclick=()=>{playToken++;audio.pause();segmentEnd=null;transitionRun=false;if(typeof stopTransitionAudios==='function')stopTransitionAudios()};
 audioSeek.oninput=()=>{if(Number.isFinite(audio.duration)&&audio.duration>0)audio.currentTime=Number(audioSeek.value)/1000*audio.duration};
 
 async function clickTrack(beats,bpm,delay=0){
@@ -3470,37 +3470,142 @@ async function clickTrack(beats,bpm,delay=0){
     const o=audioCtx.createOscillator(),g=audioCtx.createGain();
     o.frequency.value=i===0?1200:850;
     g.gain.setValueAtTime(.0001,st+i*int);
-    g.gain.exponentialRampToValueAtTime(i===0?.22:.14,st+i*int+.008);
-    g.gain.exponentialRampToValueAtTime(.0001,st+i*int+.07);
-    o.connect(g);g.connect(audioCtx.destination);o.start(st+i*int);o.stop(st+i*int+.08);
+    g.gain.exponentialRampToValueAtTime(i===0?.58:.40,st+i*int+.008);
+    g.gain.exponentialRampToValueAtTime(.0001,st+i*int+.09);
+    o.connect(g);g.connect(audioCtx.destination);o.start(st+i*int);o.stop(st+i*int+.10);
   }
 }
 document.getElementById('previewCount').onclick=()=>clickTrack(Number(document.getElementById('joinBeats').value)||4,Number(document.getElementById('joinBpm').value)||120);
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+let transitionAudios=[];
+function stopTransitionAudios(){
+  transitionAudios.forEach(a=>{try{a.pause();a.src=''}catch(e){}});
+  transitionAudios=[];
+}
+function makeTransitionAudio(song){
+  const a=new Audio(sourceFor(song));
+  a.preload='auto';
+  a.volume=1;
+  transitionAudios.push(a);
+  return a;
+}
+function waitAudioMeta(a){
+  if(a.readyState>=1)return Promise.resolve();
+  return new Promise((res,rej)=>{
+    const ok=()=>{clean();res()}, ng=()=>{clean();rej(new Error('audio load failed'))};
+    const clean=()=>{a.removeEventListener('loadedmetadata',ok);a.removeEventListener('error',ng)};
+    a.addEventListener('loadedmetadata',ok,{once:true});
+    a.addEventListener('error',ng,{once:true});
+    a.load();
+  });
+}
+async function startAt(a,t){
+  await waitAudioMeta(a);
+  a.currentTime=Math.max(0,Math.min(t,Math.max(0,(a.duration||t+1)-.02)));
+  await a.play();
+}
 async function previewTransition(){
   if(!editingJoin)return;
   const {from,to}=editingJoin,fi=activeBlockIndexes(from),ti=activeBlockIndexes(to);
   if(!fi.length||!ti.length)return;
-  const last=fi[fi.length-1],first=ti[0],beats=Number(document.getElementById('joinBeats').value)||4,bpm=Number(document.getElementById('joinBpm').value)||120;
-  const countSec=60/bpm*beats,end=currentEndSec(from,last),[bs]=parseRange(from.blocks[last].meta),tail=Math.max(5,countSec+.7),start=Math.max(bs,end-tail);
-  const [nextStart]=parseRange(to.blocks[first].meta),nextEnd=Math.min(nextStart+8,currentEndSec(to,first));
-  const token=++playToken;transitionRun=true;
-  if(tempMode==='overlay'){
-    const dur=end-start,delay=Math.max(0,dur-countSec);
-    await playSeg(from,start,end,`${from.title} → カウント → ${to.title}`,token);
-    await clickTrack(beats,bpm,delay);await sleep(dur*1000);
+
+  // Stop any previous transition preview, but do not reuse the main player.
+  playToken++;
+  audio.pause();
+  segmentEnd=null;
+  stopTransitionAudios();
+
+  const token=playToken;
+  transitionRun=true;
+
+  const last=fi[fi.length-1],first=ti[0];
+  const beats=Number(document.getElementById('joinBeats').value)||4;
+  const bpm=Number(document.getElementById('joinBpm').value)||120;
+  const countSec=60/bpm*beats;
+
+  const end=currentEndSec(from,last);
+  const [bs]=parseRange(from.blocks[last].meta);
+
+  // Preview enough of the previous phrase to hear the musical lead-in.
+  const lead=Math.max(6,countSec+1.0);
+  const start=Math.max(bs,end-lead);
+
+  const [nextStart]=parseRange(to.blocks[first].meta);
+  const nextEnd=Math.min(nextStart+8,currentEndSec(to,first));
+
+  // Let the last hit/decay remain audible instead of hard-cutting at the block boundary.
+  // Overlay mode can ring underneath the next song.
+  const ringTail=1.35;
+
+  const prevA=makeTransitionAudio(from);
+  const nextA=makeTransitionAudio(to);
+
+  try{
+    await startAt(prevA,start);
     if(token!==playToken)return;
-    await playSeg(to,nextStart,nextEnd,`${to.title}｜入り`,token);
-  }else{
-    const dur=end-start;
-    await playSeg(from,start,end,`${from.title} → 締め → カウント → ${to.title}`,token);
-    await sleep(dur*1000);if(token!==playToken)return;
-    audio.pause();await clickTrack(beats,bpm,0);await sleep(countSec*1000);if(token!==playToken)return;
-    await playSeg(to,nextStart,nextEnd,`${to.title}｜入り`,token);
+
+    dock.classList.add('show');
+    audioNow.textContent=tempMode==='overlay'
+      ? `${from.title}｜最後の音にカウントを重ねる`
+      : `${from.title}｜締めてからカウント`;
+
+    const untilBoundary=Math.max(0,end-start);
+
+    if(tempMode==='overlay'){
+      // Count starts BEFORE the previous-song boundary, so the required beats
+      // literally overlap the last part of the previous song.
+      const countDelay=Math.max(0,untilBoundary-countSec);
+      await clickTrack(beats,bpm,countDelay);
+
+      // At the musical boundary, start the next song. Do NOT stop prevA:
+      // its final hit/decay is allowed to ring underneath.
+      await sleep(untilBoundary*1000);
+      if(token!==playToken)return;
+
+      await startAt(nextA,nextStart);
+      audioNow.textContent=`${from.title} → ${to.title}｜つなぎ試聴`;
+
+      await sleep(Math.max(0,(nextEnd-nextStart))*1000);
+      if(token!==playToken)return;
+      nextA.pause();
+
+      // Give the previous final sound enough time to decay naturally.
+      if(!prevA.paused){
+        await sleep(ringTail*1000);
+        prevA.pause();
+      }
+    }else{
+      // Play THROUGH the boundary so the "ジャン！" is heard and allowed to decay.
+      // Only after that sound has completed do we start the count.
+      await sleep((untilBoundary+ringTail)*1000);
+      if(token!==playToken)return;
+      prevA.pause();
+
+      audioNow.textContent=`${from.title}｜締め → カウント`;
+      await clickTrack(beats,bpm,0);
+      await sleep(countSec*1000);
+      if(token!==playToken)return;
+
+      await startAt(nextA,nextStart);
+      audioNow.textContent=`${from.title} → ${to.title}｜つなぎ試聴`;
+      await sleep(Math.max(0,(nextEnd-nextStart))*1000);
+      if(token!==playToken)return;
+      nextA.pause();
+    }
+  }catch(e){
+    console.error(e);
+    audioNow.textContent='つなぎ試聴で音源を再生できません';
+    dock.classList.add('show');
+  }finally{
+    if(token===playToken){
+      transitionRun=false;
+      stopTransitionAudios();
+    }
   }
-  transitionRun=false;
 }
 document.getElementById('previewTransition').onclick=previewTransition;
+
 
 /* ===== menu / reset ===== */
 document.getElementById('resetBlocksBtn').onclick=()=>{if(confirm('すべてのブロック尺編集を初期化しますか？')){blockDur={};cutSnapshots={};save();renderAll(currentView())}};
