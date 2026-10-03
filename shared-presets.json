@@ -1,0 +1,51 @@
+{
+  "version": 1,
+  "presets": [
+    {
+      "id": "shared_initial_4020",
+      "name": "初版（40:20・元の曲順）",
+      "savedAt": "2026-10-03T00:00:00.000Z",
+      "order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "blockDur": {},
+      "sourceTailTrim": {},
+      "joins": {},
+      "cutSnapshots": {}
+    },
+    {
+      "id": "shared_baseline_3812",
+      "name": "基準案（38:12）",
+      "savedAt": "2026-10-03T00:00:00.000Z",
+      "order": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8
+      ],
+      "blockDur": {
+        "3-11": 0,
+        "5-0": 0,
+        "7-0": 0
+      },
+      "sourceTailTrim": {
+        "2": 6
+      },
+      "joins": {},
+      "cutSnapshots": {}
+    }
+  ]
+}
